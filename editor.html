@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Book Editor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --border: #d9dee7;
+      --text: #1e2230;
+      --muted: #5f6b85;
+      --primary: #3d6af2;
+      --danger: #d64545;
+      --success: #198754;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top left, #eef2ff, var(--bg) 40%);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 32px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 24px auto 80px;
+      padding: 0 24px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 96px;
+      align-self: start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .sidebar nav {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 70vh;
+      overflow: auto;
+      padding-right: 6px;
+    }
+
+    .sidebar a {
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .sidebar a span {
+      display: block;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .sidebar .chapter-link {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f4f6ff;
+      border: 1px solid #e1e7ff;
+    }
+
+    .sidebar .section-link {
+      padding: 8px 12px;
+      border-radius: 10px;
+      margin-left: 8px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--card);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      align-items: center;
+      margin-bottom: 24px;
+      position: sticky;
+      top: 96px;
+      z-index: 1;
+    }
+
+    .toolbar input[type="text"] {
+      flex: 1 1 280px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    .toolbar button,
+    .toolbar label {
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      box-shadow: 0 6px 16px rgba(61, 106, 242, 0.25);
+      text-align: center;
+    }
+
+    .toolbar button.secondary,
+    .toolbar label.secondary {
+      background: #e8eefc;
+      color: var(--primary);
+      box-shadow: none;
+    }
+
+    .toolbar button.danger {
+      background: var(--danger);
+      box-shadow: none;
+    }
+
+    .toolbar button:active,
+    .toolbar label:active {
+      transform: translateY(1px);
+    }
+
+    .toolbar input[type="file"] {
+      display: none;
+    }
+
+    .chapter {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .chapter.dragging,
+    .section.dragging {
+      opacity: 0.5;
+    }
+
+    .chapter-header {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .drag-handle {
+      cursor: grab;
+      font-size: 18px;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .chapter-title,
+    .section-title {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    .chapter-actions,
+    .section-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chapter-actions button,
+    .section-actions button {
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      background: #eef1f7;
+      color: var(--text);
+    }
+
+    .chapter-actions button.delete,
+    .section-actions button.delete {
+      background: #fdecea;
+      color: var(--danger);
+    }
+
+    .section {
+      background: #f8f9fb;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .rich-editor {
+      min-height: 120px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .rich-editor:focus {
+      outline: 2px solid rgba(61, 106, 242, 0.25);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 30px;
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      background: #fbfbfd;
+    }
+
+    .status {
+      font-size: 14px;
+      color: var(--success);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    footer {
+      margin-top: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        order: 2;
+      }
+
+      .toolbar {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Book Editor</h1>
+    <p>Edit chapters and sections locally, then generate the public read-only version.</p>
+  </header>
+
+  <div class="container">
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Navigation</h2>
+        <nav id="sidebar-nav"></nav>
+      </aside>
+
+      <main>
+        <div class="toolbar">
+          <input id="book-title" type="text" placeholder="Book title" />
+          <button id="add-chapter">+ Add Chapter</button>
+          <button id="generate" class="secondary">Generate Public Version</button>
+          <label class="secondary" for="import-json">Import JSON</label>
+          <input id="import-json" type="file" accept="application/json" />
+          <button id="export-json" class="secondary">Export JSON</button>
+          <span id="status" class="status"></span>
+        </div>
+
+        <div id="chapters"></div>
+        <div id="empty" class="empty-state" hidden>
+          No chapters yet. Click "+ Add Chapter" to start.
+        </div>
+
+        <footer>
+          Drafts auto-save in your browser. Public exports include no admin tools or passwords.
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <template id="chapter-template">
+    <div class="chapter" draggable="true">
+      <div class="chapter-header">
+        <span class="drag-handle" title="Drag to reorder">☰</span>
+        <input class="chapter-title" type="text" placeholder="Chapter title" />
+        <div class="chapter-actions">
+          <button class="add-section">+ Add Section</button>
+          <button class="delete delete-chapter">Delete</button>
+        </div>
+      </div>
+      <div class="sections"></div>
+    </div>
+  </template>
+
+  <template id="section-template">
+    <div class="section" draggable="true">
+      <div class="section-header">
+        <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+        <input class="section-title" type="text" placeholder="Section title" />
+        <div class="section-actions">
+          <button class="delete delete-section">Delete</button>
+        </div>
+      </div>
+      <div class="rich-editor" contenteditable="true"></div>
+    </div>
+  </template>
+
+  <script>
+    const STORAGE_KEY = "book_editor_data_v1";
+    const chaptersRoot = document.getElementById("chapters");
+    const emptyState = document.getElementById("empty");
+    const bookTitleInput = document.getElementById("book-title");
+    const statusEl = document.getElementById("status");
+    const sidebarNav = document.getElementById("sidebar-nav");
+
+    let bookData = null;
+
+    const defaultData = {
+      title: "My Book",
+      chapters: []
+    };
+
+    const showStatus = (message, isError = false) => {
+      statusEl.textContent = message;
+      statusEl.classList.toggle("error", isError);
+      if (message) {
+        setTimeout(() => {
+          if (statusEl.textContent === message) {
+            statusEl.textContent = "";
+            statusEl.classList.remove("error");
+          }
+        }, 2400);
+      }
+    };
+
+    const persist = () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bookData));
+      showStatus("Draft saved");
+    };
+
+    const fetchSeedData = async () => {
+      try {
+        const response = await fetch("book_data.json", { cache: "no-store" });
+        if (!response.ok) {
+          return null;
+        }
+        return await response.json();
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const loadData = async () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        bookData = JSON.parse(stored);
+        return;
+      }
+      const seed = await fetchSeedData();
+      bookData = seed || structuredClone(defaultData);
+    };
+
+    const createChapter = (chapter, chapterIndex) => {
+      const template = document.getElementById("chapter-template");
+      const node = template.content.firstElementChild.cloneNode(true);
+      const titleInput = node.querySelector(".chapter-title");
+      const sectionsRoot = node.querySelector(".sections");
+      const addSectionBtn = node.querySelector(".add-section");
+      const deleteBtn = node.querySelector(".delete-chapter");
+
+      node.id = `chapter-${chapterIndex}`;
+      titleInput.value = chapter.title;
+      titleInput.addEventListener("input", () => {
+        chapter.title = titleInput.value;
+        persist();
+      });
+
+      addSectionBtn.addEventListener("click", () => {
+        chapter.sections.push({
+          title: "New Section",
+          content: "<p>Start writing...</p>"
+        });
+        render();
+        persist();
+      });
+
+      deleteBtn.addEventListener("click", () => {
+        bookData.chapters = bookData.chapters.filter((c) => c !== chapter);
+        render();
+        persist();
+      });
+
+      initChapterDrag(node, chapter);
+
+      chapter.sections.forEach((section, sectionIndex) => {
+        sectionsRoot.appendChild(createSection(chapter, section, chapterIndex, sectionIndex));
+      });
+
+      return node;
+    };
+
+    const createSection = (chapter, section, chapterIndex, sectionIndex) => {
+      const template = document.getElementById("section-template");
+      const node = template.content.firstElementChild.cloneNode(true);
+      const titleInput = node.querySelector(".section-title");
+      const contentEditable = node.querySelector(".rich-editor");
+      const deleteBtn = node.querySelector(".delete-section");
+
+      node.id = `section-${chapterIndex}-${sectionIndex}`;
+      titleInput.value = section.title;
+      contentEditable.innerHTML = section.content || "";
+
+      titleInput.addEventListener("input", () => {
+        section.title = titleInput.value;
+        persist();
+      });
+
+      contentEditable.addEventListener("input", () => {
+        section.content = contentEditable.innerHTML.trim();
+        persist();
+      });
+
+      deleteBtn.addEventListener("click", () => {
+        chapter.sections = chapter.sections.filter((s) => s !== section);
+        render();
+        persist();
+      });
+
+      initSectionDrag(node, chapter, section);
+
+      return node;
+    };
+
+    const render = () => {
+      chaptersRoot.innerHTML = "";
+      sidebarNav.innerHTML = "";
+      emptyState.hidden = bookData.chapters.length > 0;
+      bookTitleInput.value = bookData.title;
+
+      bookData.chapters.forEach((chapter, chapterIndex) => {
+        chaptersRoot.appendChild(createChapter(chapter, chapterIndex));
+
+        const chapterLink = document.createElement("a");
+        chapterLink.className = "chapter-link";
+        chapterLink.href = `#chapter-${chapterIndex}`;
+        chapterLink.textContent = chapter.title || `Chapter ${chapterIndex + 1}`;
+        sidebarNav.appendChild(chapterLink);
+
+        chapter.sections.forEach((section, sectionIndex) => {
+          const sectionLink = document.createElement("a");
+          sectionLink.className = "section-link";
+          sectionLink.href = `#section-${chapterIndex}-${sectionIndex}`;
+          sectionLink.textContent = section.title || `Section ${sectionIndex + 1}`;
+          const label = document.createElement("span");
+          label.textContent = chapter.title || `Chapter ${chapterIndex + 1}`;
+          sectionLink.appendChild(label);
+          sidebarNav.appendChild(sectionLink);
+        });
+      });
+    };
+
+    const initChapterDrag = (node, chapter) => {
+      node.addEventListener("dragstart", (event) => {
+        event.dataTransfer.setData("text/plain", "chapter");
+        node.classList.add("dragging");
+        node.dataset.dragId = bookData.chapters.indexOf(chapter);
+      });
+
+      node.addEventListener("dragend", () => {
+        node.classList.remove("dragging");
+        delete node.dataset.dragId;
+      });
+
+      node.addEventListener("dragover", (event) => {
+        event.preventDefault();
+      });
+
+      node.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const fromIndex = Number(document.querySelector(".chapter.dragging")?.dataset.dragId);
+        const toIndex = bookData.chapters.indexOf(chapter);
+        if (Number.isNaN(fromIndex) || fromIndex === toIndex) {
+          return;
+        }
+        const [moved] = bookData.chapters.splice(fromIndex, 1);
+        bookData.chapters.splice(toIndex, 0, moved);
+        render();
+        persist();
+      });
+    };
+
+    const initSectionDrag = (node, chapter, section) => {
+      node.addEventListener("dragstart", (event) => {
+        event.stopPropagation();
+        event.dataTransfer.setData("text/plain", "section");
+        node.classList.add("dragging");
+        node.dataset.dragId = chapter.sections.indexOf(section);
+        node.dataset.chapterId = bookData.chapters.indexOf(chapter);
+      });
+
+      node.addEventListener("dragend", () => {
+        node.classList.remove("dragging");
+        delete node.dataset.dragId;
+        delete node.dataset.chapterId;
+      });
+
+      node.addEventListener("dragover", (event) => {
+        event.preventDefault();
+      });
+
+      node.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const dragging = document.querySelector(".section.dragging");
+        if (!dragging) {
+          return;
+        }
+        const fromIndex = Number(dragging.dataset.dragId);
+        const fromChapterIndex = Number(dragging.dataset.chapterId);
+        const toIndex = chapter.sections.indexOf(section);
+        if (Number.isNaN(fromIndex) || Number.isNaN(fromChapterIndex)) {
+          return;
+        }
+        const fromChapter = bookData.chapters[fromChapterIndex];
+        const [moved] = fromChapter.sections.splice(fromIndex, 1);
+        chapter.sections.splice(toIndex, 0, moved);
+        render();
+        persist();
+      });
+    };
+
+    document.getElementById("add-chapter").addEventListener("click", () => {
+      bookData.chapters.push({
+        title: `Chapter ${bookData.chapters.length + 1}`,
+        sections: [
+          {
+            title: "New Section",
+            content: "<p>Start writing...</p>"
+          }
+        ]
+      });
+      render();
+      persist();
+    });
+
+    bookTitleInput.addEventListener("input", () => {
+      bookData.title = bookTitleInput.value;
+      persist();
+    });
+
+    document.getElementById("export-json").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(bookData, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "book_data.json";
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showStatus("Exported book_data.json");
+    });
+
+    document.getElementById("import-json").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          bookData = JSON.parse(reader.result);
+          render();
+          persist();
+          showStatus("Imported JSON");
+        } catch (error) {
+          showStatus("Invalid JSON file", true);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    });
+
+    const buildPublicHtml = (data) => {
+      const chaptersMarkup = data.chapters.map((chapter) => {
+        const sectionsMarkup = chapter.sections.map((section) => {
+          return `
+            <section>
+              <h3>${section.title}</h3>
+              <div class="section-content">${section.content || ""}</div>
+            </section>
+          `;
+        }).join("");
+        return `
+          <article class="chapter">
+            <h2>${chapter.title}</h2>
+            ${sectionsMarkup}
+          </article>
+        `;
+      }).join("");
+
+      return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${data.title}</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --card: #ffffff;
+      --text: #1e2230;
+      --muted: #5f6b85;
+      --border: #e0e6f0;
+      --primary: #3d6af2;
+      --shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    header {
+      padding: 48px 24px 24px;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 36px;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+    }
+    .content {
+      max-width: 900px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+    }
+    .chapter {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .chapter h2 {
+      margin-top: 0;
+      color: var(--primary);
+    }
+    section {
+      margin-top: 20px;
+    }
+    section h3 {
+      margin-bottom: 6px;
+    }
+    .section-content {
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>${data.title}</h1>
+    <p>Read-only public book</p>
+  </header>
+  <main class="content">
+    ${chaptersMarkup}
+  </main>
+</body>
+</html>`;
+    };
+
+    document.getElementById("generate").addEventListener("click", () => {
+      const html = buildPublicHtml(bookData);
+      const blob = new Blob([html], { type: "text/html" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "index.html";
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showStatus("Generated index.html");
+    });
+
+    loadData().then(() => {
+      render();
+      persist();
+    });
+  </script>
+</body>
+</html>
