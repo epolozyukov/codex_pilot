@@ -1,0 +1,14 @@
+{
+  "title": "My Book",
+  "chapters": [
+    {
+      "title": "Chapter 1",
+      "sections": [
+        {
+          "title": "Introduction",
+          "content": "<p>Welcome to your book. Start editing this section.</p>"
+        }
+      ]
+    }
+  ]
+}
